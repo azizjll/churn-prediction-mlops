@@ -1,0 +1,38 @@
+name: ML CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-and-train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Tests unitaires
+        run: pytest tests/ -v
+      - name: Entraînement du modèle
+        run: python -m src.train
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: models/
+
+  build-docker:
+    needs: test-and-train
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: model
+          path: models/
+      - name: Build de l'image Docker
+        run: docker build -t churn-api:${{ github.sha }} .
+      # Étapes suivantes en vrai projet : docker push vers un registry,
+      # puis déploiement (kubectl set image ...) en staging puis production.
